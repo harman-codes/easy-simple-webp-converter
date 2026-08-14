@@ -3,7 +3,7 @@
  * Plugin Name:       Easy & Simple WebP Converter
  * Plugin URI:        https://github.com/harman-codes/easy-simple-webp-converter
  * Description:       Convert all media library images to WebP with a configurable quality (0-100) in one click.
- * Version:           1.1.0
+ * Version:           1.1.1
  * Author:            Harman
  * Text Domain:       easy-webp-converter
  * License:           GPL-2.0+
@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 define( 'EASYWEBP_ENTRY_FILE', __FILE__ );
 define( 'EASYWEBP_ROOT_DIR', plugin_dir_path( __FILE__ ) );
 define( 'EASYWEBP_ROOT_URL', untrailingslashit( plugin_dir_url( __FILE__ ) ) );
-define( 'EASYWEBP_VERSION', '1.1.0' );
+define( 'EASYWEBP_VERSION', '1.1.1' );
 
 define( 'EASYWEBP_OPTION_QUALITY', 'easy_webp_quality' );
 define( 'EASYWEBP_OPTION_AUTOCONVERT', 'easy_webp_autoconvert' );

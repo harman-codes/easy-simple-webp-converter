@@ -22,6 +22,17 @@ class Easy_WebP_Converter {
 	);
 
 	/**
+	 * Whether the configured WebP quality should override the editor quality.
+	 *
+	 * WordPress core resets the editor quality to the WebP default whenever a
+	 * file is converted to a new format. This flag keeps the configured quality
+	 * in place while the plugin converts images.
+	 *
+	 * @var bool
+	 */
+	protected $override_webp_quality = false;
+
+	/**
 	 * Constructor.
 	 */
 	public function __construct() {
@@ -31,6 +42,8 @@ class Easy_WebP_Converter {
 		add_action( 'admin_notices', array( $this, 'render_admin_notices' ) );
 		add_action( 'wp_ajax_easy_webp_convert', array( $this, 'handle_convert' ) );
 		add_filter( 'wp_handle_upload', array( $this, 'maybe_auto_convert_upload' ), 10, 2 );
+		add_filter( 'wp_editor_set_quality', array( $this, 'filter_editor_quality' ), 10, 2 );
+		add_action( 'shutdown', array( $this, 'reset_quality_override' ), 1 );
 	}
 
 	/**
@@ -110,6 +123,32 @@ class Easy_WebP_Converter {
 	 */
 	public function get_autoconvert() {
 		return (bool) get_option( EASYWEBP_OPTION_AUTOCONVERT, false );
+	}
+
+	/**
+	 * Keep the configured WebP quality when the image editor converts a file.
+	 *
+	 * WordPress core resets the editor quality to the format default while
+	 * saving to a different mime type. Returning the plugin's quality for
+	 * WebP output ensures the selected "WebP quality" value is honored.
+	 *
+	 * @param int    $quality   The quality that would be used.
+	 * @param string $mime_type The mime type being processed.
+	 * @return int
+	 */
+	public function filter_editor_quality( $quality, $mime_type ) {
+		if ( $this->override_webp_quality && 'image/webp' === $mime_type ) {
+			return $this->get_quality();
+		}
+
+		return $quality;
+	}
+
+	/**
+	 * Reset the WebP quality override at the end of the request.
+	 */
+	public function reset_quality_override() {
+		$this->override_webp_quality = false;
 	}
 
 	/**
@@ -333,6 +372,13 @@ class Easy_WebP_Converter {
 			return $upload;
 		}
 
+		/*
+		 * Keep the quality override active for the rest of the request so the
+		 * image sub-sizes that WordPress generates for the new WebP attachment
+		 * are also created at the selected quality.
+		 */
+		$this->override_webp_quality = true;
+
 		return array(
 			'file' => $result['file'],
 			'url'  => str_replace( wp_basename( $upload['file'] ), wp_basename( $result['file'] ), $upload['url'] ),
@@ -365,7 +411,10 @@ class Easy_WebP_Converter {
 			return false;
 		}
 
+		$was_override = $this->override_webp_quality;
+		$this->override_webp_quality = true;
 		$saved = $editor->save( $webp_file, 'image/webp' );
+		$this->override_webp_quality = $was_override;
 
 		if ( is_wp_error( $saved ) ) {
 			return false;
@@ -543,9 +592,12 @@ class Easy_WebP_Converter {
 
 		$old_meta = wp_get_attachment_metadata( $id );
 
+		$this->override_webp_quality = true;
+
 		$webp_file = $this->convert_file_to_webp( $file );
 
 		if ( empty( $webp_file ) ) {
+			$this->override_webp_quality = false;
 			return array( 'status' => 'failed' );
 		}
 
@@ -563,6 +615,8 @@ class Easy_WebP_Converter {
 				'post_mime_type' => 'image/webp',
 			)
 		);
+
+		$this->override_webp_quality = false;
 
 		$this->delete_old_image_files( $file, $old_meta );
 

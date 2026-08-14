@@ -53,6 +53,9 @@ easy-webp-converter/
 
 ## Changelog
 
+### 1.1.1
+- Fixed converted images ignoring the selected **WebP quality**. WordPress core was resetting the quality to its WebP default during conversion; the plugin now enforces the configured quality for converted full-size images and thumbnails.
+
 ### 1.1.0
 - Added an **Auto-convert new uploads** ON/OFF option. When enabled, newly added images are automatically converted to WebP at the selected quality.
 
