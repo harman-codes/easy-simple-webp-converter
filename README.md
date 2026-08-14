@@ -6,6 +6,7 @@ Convert every image in your WordPress media library to **WebP** with a single cl
 
 - **Sidebar menu item** — adds a "WebP Converter" page to the WordPress admin sidebar.
 - **Quality control (0–100)** — a range slider and number input, saved via the WordPress Settings API. Higher values mean better quality but larger files.
+- **Auto-convert new uploads** — an ON/OFF option that automatically converts every newly added image to WebP at the selected quality, as soon as it is uploaded.
 - **One-click conversion** — converts all media images (JPEG, PNG, GIF, BMP) to WebP at the selected quality.
 - **Auto re-generates thumbnails** — every registered image size is re-created as a `.webp` variant and the attachment metadata is updated.
 - **Safe & resumable** — conversion runs in small batches via AJAX to avoid server timeouts; you can resume if interrupted.
@@ -27,8 +28,9 @@ Convert every image in your WordPress media library to **WebP** with a single cl
 
 ## Usage
 
-1. **Set the quality** — use the slider or the number field (0–100), then click **Save quality**.
-2. **Convert** — click **Convert all images to WebP**. A progress bar shows the conversion status, along with converted / skipped / failed counts.
+1. **Set the quality** — use the slider or the number field (0–100), then click **Save settings**.
+2. **Optional: auto-convert new uploads** — tick **Auto-convert new uploads** and click **Save settings**. New images added to the media library are converted to WebP automatically at the selected quality.
+3. **Convert existing images** — click **Convert all images to WebP**. A progress bar shows the conversion status, along with converted / skipped / failed counts.
 3. When finished, all supported images in the media library are now WebP.
 
 ### Notes
@@ -50,6 +52,9 @@ easy-webp-converter/
 ```
 
 ## Changelog
+
+### 1.1.0
+- Added an **Auto-convert new uploads** ON/OFF option. When enabled, newly added images are automatically converted to WebP at the selected quality.
 
 ### 1.0.0
 - Initial release.

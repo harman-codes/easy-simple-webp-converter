@@ -30,6 +30,7 @@ class Easy_WebP_Converter {
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
 		add_action( 'admin_notices', array( $this, 'render_admin_notices' ) );
 		add_action( 'wp_ajax_easy_webp_convert', array( $this, 'handle_convert' ) );
+		add_filter( 'wp_handle_upload', array( $this, 'maybe_auto_convert_upload' ), 10, 2 );
 	}
 
 	/**
@@ -48,7 +49,7 @@ class Easy_WebP_Converter {
 	}
 
 	/**
-	 * Register the quality setting.
+	 * Register the quality and auto-convert settings.
 	 */
 	public function register_settings() {
 		register_setting(
@@ -58,6 +59,16 @@ class Easy_WebP_Converter {
 				'type'              => 'integer',
 				'default'           => 80,
 				'sanitize_callback' => array( $this, 'sanitize_quality' ),
+			)
+		);
+
+		register_setting(
+			'easy_webp_settings',
+			EASYWEBP_OPTION_AUTOCONVERT,
+			array(
+				'type'              => 'boolean',
+				'default'           => false,
+				'sanitize_callback' => array( $this, 'sanitize_checkbox' ),
 			)
 		);
 	}
@@ -80,6 +91,25 @@ class Easy_WebP_Converter {
 	 */
 	public function get_quality() {
 		return $this->sanitize_quality( get_option( EASYWEBP_OPTION_QUALITY, 80 ) );
+	}
+
+	/**
+	 * Sanitize a checkbox value to a boolean.
+	 *
+	 * @param mixed $value Raw value.
+	 * @return bool
+	 */
+	public function sanitize_checkbox( $value ) {
+		return (bool) $value;
+	}
+
+	/**
+	 * Whether automatic conversion of new uploads is enabled.
+	 *
+	 * @return bool
+	 */
+	public function get_autoconvert() {
+		return (bool) get_option( EASYWEBP_OPTION_AUTOCONVERT, false );
 	}
 
 	/**
@@ -152,7 +182,7 @@ class Easy_WebP_Converter {
 			<?php endif; ?>
 
 			<div class="easy-webp-card">
-				<h2><?php esc_html_e( 'Quality settings', 'easy-webp-converter' ); ?></h2>
+				<h2><?php esc_html_e( 'Settings', 'easy-webp-converter' ); ?></h2>
 				<form method="post" action="options.php">
 					<?php settings_fields( 'easy_webp_settings' ); ?>
 					<table class="form-table" role="presentation">
@@ -168,8 +198,22 @@ class Easy_WebP_Converter {
 								</p>
 							</td>
 						</tr>
+						<tr>
+							<th scope="row">
+								<label for="easy-webp-autoconvert"><?php esc_html_e( 'Auto-convert new uploads', 'easy-webp-converter' ); ?></label>
+							</th>
+							<td>
+								<label for="easy-webp-autoconvert">
+									<input type="checkbox" id="easy-webp-autoconvert" name="<?php echo esc_attr( EASYWEBP_OPTION_AUTOCONVERT ); ?>" value="1" <?php checked( $this->get_autoconvert() ); ?> />
+									<?php esc_html_e( 'Automatically convert newly added images to WebP using the selected quality.', 'easy-webp-converter' ); ?>
+								</label>
+								<p class="description">
+									<?php esc_html_e( 'When enabled, every new image uploaded to the media library is converted to WebP as soon as it is added.', 'easy-webp-converter' ); ?>
+								</p>
+							</td>
+						</tr>
 					</table>
-					<?php submit_button( __( 'Save quality', 'easy-webp-converter' ) ); ?>
+					<?php submit_button( __( 'Save settings', 'easy-webp-converter' ) ); ?>
 				</form>
 			</div>
 
@@ -250,6 +294,86 @@ class Easy_WebP_Converter {
 		}
 
 		return false;
+	}
+
+	/**
+	 * Automatically convert a newly uploaded image to WebP when enabled.
+	 *
+	 * Hooks into the `wp_handle_upload` filter, which is fired for both the
+	 * classic Media Library and the REST API media uploads. Returns the upload
+	 * data unchanged when auto-conversion is disabled or the file is not an
+	 * eligible image.
+	 *
+	 * @param array  $upload  Uploaded file data (file, url, type).
+	 * @param string $context Upload context ('upload' or 'sideload').
+	 * @return array
+	 */
+	public function maybe_auto_convert_upload( $upload, $context ) {
+		if ( ! $this->get_autoconvert() ) {
+			return $upload;
+		}
+
+		if ( empty( $upload['file'] ) || empty( $upload['type'] ) || ! file_exists( $upload['file'] ) ) {
+			return $upload;
+		}
+
+		if ( ! in_array( $upload['type'], $this->supported_mimes, true ) ) {
+			return $upload;
+		}
+
+		$extension = strtolower( pathinfo( $upload['file'], PATHINFO_EXTENSION ) );
+
+		if ( 'webp' === $extension ) {
+			return $upload;
+		}
+
+		$result = $this->convert_file_to_webp( $upload['file'] );
+
+		if ( empty( $result ) ) {
+			return $upload;
+		}
+
+		return array(
+			'file' => $result['file'],
+			'url'  => str_replace( wp_basename( $upload['file'] ), wp_basename( $result['file'] ), $upload['url'] ),
+			'type' => 'image/webp',
+		);
+	}
+
+	/**
+	 * Convert a single image file to WebP on disk.
+	 *
+	 * @param string $file Full path to the source image.
+	 * @return array|false Array with the new 'file' path, or false on failure.
+	 */
+	protected function convert_file_to_webp( $file ) {
+		if ( ! $this->is_webp_supported() || ! file_exists( $file ) || ! is_readable( $file ) ) {
+			return false;
+		}
+
+		$editor = wp_get_image_editor( $file );
+
+		if ( is_wp_error( $editor ) ) {
+			return false;
+		}
+
+		$editor->set_quality( $this->get_quality() );
+
+		$webp_file = preg_replace( '/\.(jpe?g|png|gif|bmp)$/i', '.webp', $file );
+
+		if ( ! $webp_file || $webp_file === $file ) {
+			return false;
+		}
+
+		$saved = $editor->save( $webp_file, 'image/webp' );
+
+		if ( is_wp_error( $saved ) ) {
+			return false;
+		}
+
+		wp_delete_file( $file );
+
+		return array( 'file' => $saved['path'] );
 	}
 
 	/**
@@ -417,27 +541,15 @@ class Easy_WebP_Converter {
 			return array( 'status' => 'skipped' );
 		}
 
-		$editor = wp_get_image_editor( $file );
+		$old_meta = wp_get_attachment_metadata( $id );
 
-		if ( is_wp_error( $editor ) ) {
-			return array( 'status' => 'failed', 'message' => $editor->get_error_message() );
-		}
+		$webp_file = $this->convert_file_to_webp( $file );
 
-		$editor->set_quality( $this->get_quality() );
-
-		$webp_file = preg_replace( '/\.(jpe?g|png|gif|bmp)$/i', '.webp', $file );
-
-		if ( ! $webp_file || $webp_file === $file ) {
+		if ( empty( $webp_file ) ) {
 			return array( 'status' => 'failed' );
 		}
 
-		$saved = $editor->save( $webp_file, 'image/webp' );
-
-		if ( is_wp_error( $saved ) ) {
-			return array( 'status' => 'failed', 'message' => $saved->get_error_message() );
-		}
-
-		$old_meta = wp_get_attachment_metadata( $id );
+		$webp_file = $webp_file['file'];
 
 		update_attached_file( $id, _wp_relative_upload_path( $webp_file ) );
 
