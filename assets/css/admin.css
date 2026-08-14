@@ -1,0 +1,56 @@
+/**
+ * Easy & Simple WebP Converter - admin styles.
+ */
+
+.easy-webp-wrap .easy-webp-card {
+	background: #fff;
+	border: 1px solid #ccd0d4;
+	box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
+	padding: 20px;
+	margin-bottom: 20px;
+	max-width: 720px;
+}
+
+.easy-webp-wrap .easy-webp-card h2 {
+	margin-top: 0;
+	padding-top: 0;
+}
+
+.easy-webp-wrap .easy-webp-card .form-table {
+	margin-top: 10px;
+}
+
+.easy-webp-wrap #easy-webp-quality-range {
+	width: 320px;
+	vertical-align: middle;
+	margin-right: 10px;
+}
+
+.easy-webp-wrap .easy-webp-progress {
+	background: #f1f1f1;
+	border: 1px solid #ccd0d4;
+	border-radius: 3px;
+	height: 24px;
+	margin: 20px 0 10px;
+	overflow: hidden;
+	position: relative;
+	width: 100%;
+}
+
+.easy-webp-wrap .easy-webp-progress-bar {
+	background: #2271b1;
+	height: 100%;
+	width: 0;
+	-webkit-transition: width 0.3s ease;
+	transition: width 0.3s ease;
+}
+
+.easy-webp-wrap .easy-webp-status {
+	font-weight: 600;
+	margin: 8px 0 4px;
+}
+
+.easy-webp-wrap .easy-webp-stats {
+	color: #555;
+	margin: 0;
+}
